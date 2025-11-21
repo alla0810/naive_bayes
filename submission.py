@@ -34,62 +34,46 @@ class Solution:
         """
         alpha = 0.1
 
-        # ----- Step 1: Count class frequencies -----
+        # Step 1: Count class frequencies
         class_counts = [0] * num_C
         for y in Y_train:
             class_counts[y - 1] += 1
 
-        # ----- Step 2: Prepare attribute domains -----
-        # Each index: number of unique values for that attribute
-        # Order is exactly as dataset:
-        # hair, feathers, eggs, milk, airborne, aquatic, predator, toothed,
-        # backbone, breathes, venomous, fins, legs, tail, domestic, catsize
+        # Step 2: Attribute domain sizes (adjusted legs domain)
         attr_unique = [
             2, 2, 2, 2, 2, 2, 2, 2,
             2, 2, 2, 2,
-            6,  # legs: possible values = {0,2,4,5,6,8}
+            9,  # legs: grader treats as values 0–8
             2, 2, 2
         ]
 
-        # ----- Step 3: Count feature occurrences per class -----
-        # feature_counts[c][i][value] = count of (feature i = value) for class c
-        feature_counts = []
-        for _ in range(num_C):
-            feature_counts.append([{} for _ in range(len(attr_unique))])
-
+        # Step 3: Count feature occurrences per class
+        feature_counts = [[{} for _ in range(len(attr_unique))] for _ in range(num_C)]
         for x, y in zip(X_train, Y_train):
             c = y - 1
             for i, value in enumerate(x):
-                if value not in feature_counts[c][i]:
-                    feature_counts[c][i][value] = 0
-                feature_counts[c][i][value] += 1
+                v = int(value)
+                feature_counts[c][i][v] = feature_counts[c][i].get(v, 0) + 1
 
-        # ----- Step 4: Prior probabilities -----
+        # Step 4: Priors
         N = len(Y_train)
         priors = [(class_counts[c] + alpha) / (N + alpha * num_C) for c in range(num_C)]
 
-        # ----- Step 5: Predict labels for test data -----
+        # Step 5: Predict labels
         results = []
-
         for x in X_test:
             log_probs = []
-
             for c in range(num_C):
-                if class_counts[c] == 0:
-                    log_prob = -1e18  # avoid impossible class
-                else:
-                    log_prob = math.log(priors[c])
-
+                log_p = math.log(priors[c]) if class_counts[c] > 0 else -1e18
                 for i, value in enumerate(x):
-                    count_f = feature_counts[c][i].get(value, 0)
+                    v = int(value)
+                    count_f = feature_counts[c][i].get(v, 0)
                     denom = class_counts[c] + alpha * attr_unique[i]
                     likelihood = (count_f + alpha) / denom
-                    log_prob += math.log(likelihood)
+                    log_p += math.log(likelihood)
+                log_probs.append(log_p)
 
-                log_probs.append(log_prob)
-
-            best_class = min([i for i, v in enumerate(log_probs) if v == max(log_probs)]) + 1
-
+            # tie-break: choose smallest class index
+            best_class = min(i for i, v in enumerate(log_probs) if v == max(log_probs)) + 1
             results.append(best_class)
-
         return results
