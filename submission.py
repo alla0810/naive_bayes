@@ -88,7 +88,8 @@ class Solution:
 
                 log_probs.append(log_prob)
 
-            best_class = log_probs.index(max(log_probs)) + 1
+            best_class = min([i for i, v in enumerate(log_probs) if v == max(log_probs)]) + 1
+
             results.append(best_class)
 
         return results
