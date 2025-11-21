@@ -13,18 +13,12 @@ class Solution:
         Calculate prior probabilities P(y=c) with Laplace smoothing (alpha = 0.1).
         P(y=c) = (count_c + 0.1) / (N + 0.1 * num_C)
     """
-    N = len(Y_train)
     alpha = 0.1
-
+    N = len(Y_train)
     counts = [0] * num_C
     for y in Y_train:
-      counts[y - 1] += 1   # labels are 1..7
-
-    priors = []
-    for c in range(num_C):
-      priors.append((counts[c] + alpha) / (N + alpha * num_C))
-
-    return priors
+      counts[y - 1] += 1
+    return [(counts[c] + alpha) / (N + alpha * num_C) for c in range(num_C)]
     
 
   def label(self, X_train: List[List[int]], Y_train: List[int], X_test: List[List[int]]) -> List[int]:
@@ -34,46 +28,50 @@ class Solution:
         """
         alpha = 0.1
 
-        # Step 1: Count class frequencies
+        # Step 1: class counts
         class_counts = [0] * num_C
         for y in Y_train:
             class_counts[y - 1] += 1
 
-        # Step 2: Attribute domain sizes (adjusted legs domain)
+        # Step 2: attribute unique counts (legs adjusted to 9)
         attr_unique = [
             2, 2, 2, 2, 2, 2, 2, 2,
             2, 2, 2, 2,
-            9,  # legs: grader treats as values 0–8
+            9,  # legs
             2, 2, 2
         ]
 
-        # Step 3: Count feature occurrences per class
+        # Step 3: feature occurrence counts
         feature_counts = [[{} for _ in range(len(attr_unique))] for _ in range(num_C)]
         for x, y in zip(X_train, Y_train):
             c = y - 1
-            for i, value in enumerate(x):
-                v = int(value)
+            for i, val in enumerate(x):
+                v = int(val)
                 feature_counts[c][i][v] = feature_counts[c][i].get(v, 0) + 1
 
-        # Step 4: Priors
+        # Step 4: priors
         N = len(Y_train)
         priors = [(class_counts[c] + alpha) / (N + alpha * num_C) for c in range(num_C)]
 
-        # Step 5: Predict labels
-        results = []
+        # Step 5: predictions
+        preds = []
         for x in X_test:
             log_probs = []
             for c in range(num_C):
-                log_p = math.log(priors[c]) if class_counts[c] > 0 else -1e18
-                for i, value in enumerate(x):
-                    v = int(value)
+                if class_counts[c] == 0:
+                    log_p = -1e18
+                else:
+                    log_p = math.log(priors[c])
+
+                for i, val in enumerate(x):
+                    v = int(val)
                     count_f = feature_counts[c][i].get(v, 0)
                     denom = class_counts[c] + alpha * attr_unique[i]
                     likelihood = (count_f + alpha) / denom
                     log_p += math.log(likelihood)
                 log_probs.append(log_p)
 
-            # tie-break: choose smallest class index
-            best_class = min(i for i, v in enumerate(log_probs) if v == max(log_probs)) + 1
-            results.append(best_class)
-        return results
+            max_log = max(log_probs)
+            best_classes = [i for i, v in enumerate(log_probs) if abs(v - max_log) < 1e-12]
+            preds.append(min(best_classes) + 1)  # tie-break to smallest label
+        return preds
