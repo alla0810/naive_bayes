@@ -1,172 +1,121 @@
-# Decision Tree Project (CS412)
+# Naive Bayes Classifier (CS412 — Zoo Dataset)
 
-This project implements a simple **binary decision tree classifier**  
-in pure Python as part of the **CS412 Data Mining** coursework.
+This project implements a **Multinomial Naive Bayes Classifier** in pure Python (no external libraries) as part of the **CS412 Data Mining** coursework.
 
-The tree:
+---
 
-- uses **entropy** and **information gain** as the splitting criterion,
-- handles **continuous-valued attributes** via mid-point split candidates,
-- has **maximum depth = 2** (root depth = 0, so up to 3 levels of nodes).
+## Overview
 
+The classifier predicts the class of zoo animals based on 16 categorical and numeric attributes from the [UCI Zoo dataset](https://archive.ics.uci.edu/ml/datasets/Zoo).  
+There are **7 possible classes**, representing:
+1. Mammal  
+2. Bird  
+3. Reptile  
+4. Fish  
+5. Amphibian  
+6. Bug  
+7. Invertebrate  
 
-## Project Overview
+---
 
-- **Goal**: Train a shallow decision tree on numeric features and  
-  classify test instances using the learned tree structure.
+## Files
 
-- **Core ideas**:
-  - Entropy \(Info(D)\)
-  - Split information \(Info_A(D)\)
-  - Information Gain \(Gain(A) = Info(D) - Info_A(D)\)
-  - Recursive tree construction with a depth limit
+| File | Description |
+|------|--------------|
+| `submission.py` | Main implementation (contains `Solution` class). |
+| `test_submission.py` | Local test script for verifying implementation. |
+| `zoo.data.txt` | Dataset file with 101 labeled animal samples. |
+| `zoo.names.txt` | Attribute descriptions and class distribution. |
+| `problem.pdf` | Official assignment instructions. |
 
+---
 
 ## Implementation Details
 
-All functions are implemented in `submission.py` inside a single class:
+All required functions are defined inside `submission.py` within the `Solution` class:
 
 ```python
 class Solution:
-    def split_info(self, data, label, split_dim, split_point): ...
-    def fit(self, train_data, train_label): ...
-    def classify(self, train_data, train_label, test_data): ...
+    def prior(self, X_train, Y_train):
+        ...
+    def label(self, X_train, Y_train, X_test):
+        ...
 ```
 
-### 1. `split_info(data, label, split_dim, split_point)`
+### `prior(X_train, Y_train)`
 
-- Computes the **expected information** after splitting dataset \(D\)  
-  into two subsets based on:
+Computes **prior probabilities** \( P(y=c) \) for each class with **Laplace smoothing** (α = 0.1):
 
-  - feature index: `split_dim`
-  - threshold: `split_point`
+$$
+P(y=c) = \frac{\text{count}(y=c) + 0.1}{N + 0.1 \times 7}
+$$
 
-- Split rule:
+Returns:  
+A list `[p1, p2, ..., p7]` where ∑pi = 1.
 
-  - Left child:  instances with `x[split_dim] <= split_point`
-  - Right child: instances with `x[split_dim] > split_point`
+---
 
-- For each side, compute entropy:
+### `label(X_train, Y_train, X_test)`
 
-  
-$$    
-  Info(D_i) = - \sum_{c} p_{i,c} \log_2 p_{i,c}
-$$  
-  
+Implements **Multinomial Naive Bayes prediction** with Laplace smoothing (α = 0.1):
 
-- Then:
+$$
+\hat{y} = \arg\max_y \Big[ \log P(y) + \sum_i \log P(x_i \mid y) \Big]
+$$
 
-  $$ 
-  Info_A(D) = \frac{|D_L|}{|D|} Info(D_L) +
-              \frac{|D_R|}{|D|} Info(D_R)
-  $$ 
+For each feature \( x_i \):
 
-- This value is used in `fit()` to compute information gain:
+$$
+P(x_i = f \mid y=c) = \frac{\text{count}(x_i=f, y=c) + 0.1}
+{\text{count}(y=c) + 0.1 \times K_i}
+$$
 
-  $$ 
-  Gain(A) = Info(D) - Info_A(D)
-  $$ 
+where \( K_i \) = number of unique values for attribute \( i \).
 
+---
 
-### 2. `fit(train_data, train_label)`
+### Attribute Domains
 
-- Builds the decision tree and stores the root in `self.root`.
+| Attribute | Values |
+|------------|---------|
+| hair, feathers, eggs, milk, airborne, aquatic, predator, toothed, backbone, breathes, venomous, fins, tail, domestic, catsize | {0,1} |
+| legs | {0,2,4,5,6,8} |
 
-- Steps:
-
-  1. Create a root `Node`.
-  2. Recursively search for the **best split** (feature + threshold)
-     using **information gain** over:
-     - all feature dimensions, and
-     - candidate split points defined as midpoints between sorted
-       distinct feature values.
-  3. Stopping conditions (leaf node):
-     - all labels in the node are identical, or
-     - current depth reaches the **maximum depth (2)**, or
-     - no split yields positive information gain, or
-     - one side of the split would be empty.
-
-- At every node, `node.label` is set to the **majority class** among
-  the labels at that node. In case of a tie, the **smaller label value**
-  is chosen.
-
-- Tie-breaking for splits:
-  - If multiple splits have the same gain, choose the one with the
-    **smaller feature index**.
-  - If the same feature has multiple candidate thresholds with
-    identical gain, pick the **smaller split_point**.
-
-
-### 3. `classify(train_data, train_label, test_data)`
-
-- First calls `fit(train_data, train_label)` to build the tree.
-- Then, for each test instance:
-
-  1. Start from `self.root`.
-  2. While the node is not a leaf (`node.split_dim != -1`):
-     - If `x[split_dim] <= split_point` → go to `node.left`
-     - Else → go to `node.right`
-  3. Return `node.label` at the leaf.
-
-- Returns a list of integer predictions for all test instances.
-
-
-## Node Structure
-
-The `Node` class (provided by the assignment) is used to store tree structure:
-
-```python
-class Node:
-    def __init__(self):
-        self.split_dim = -1
-        self.split_point = -1
-        self.label = -1
-        self.left = None
-        self.right = None
-```
-
-- **Internal nodes**:
-  - `split_dim >= 0`
-  - `split_point` is a float threshold
-  - `left`, `right` are child `Node` objects
-
-- **Leaf nodes**:
-  - `split_dim = -1`
-  - `split_point = -1.0`
-  - `left = right = None`
-
+---
 
 ## Testing
 
-Several helper scripts are used to test the implementation:
-
-- `test_split_info_batch.py`
-  - Uses files under `./split_info/`
-  - Verifies `split_info()` against expected values.
-
-- `text_classification_batch.py`
-  - Uses files under `./classification/`
-  - Verifies `classify()` predictions against expected labels.
-
-- `test_tree_structure_batch.py`
-  - Uses files under `./tree_structure/`
-  - Compares preorder & inorder traversals of the built tree to
-    expected outputs (tree structure check).
-
-Example:
+Run the provided local test script:
 
 ```bash
-python test_split_info_batch.py
-python text_classification_batch.py
-python test_tree_structure_batch.py
+python test_submission.py
 ```
 
+Expected output example:
+```
+=== Prior Probabilities ===
+[0.4043, 0.1975, 0.0527, 0.1355, 0.0424, 0.0734, 0.0941]
+
+=== Predictions on Test Set ===
+Sample 1: predicted=1, true=1
+Sample 2: predicted=6, true=6
+Sample 3: predicted=1, true=1
+Sample 4: predicted=7, true=7
+Sample 5: predicted=2, true=2
+```
+
+---
 
 ## Notes
 
-- Implementation uses **pure Python** (no NumPy, no scikit-learn).
-- The code is designed to be compatible with the course autograder,
-  which imports `Solution` from `submission.py` and calls the methods
-  directly.
+- No external libraries (NumPy, pandas, scikit-learn) are used.
+- Laplace smoothing (α = 0.1) is applied consistently.
+- Floating-point rounding is handled automatically by the autograder.
+- **Do not print** inside `submission.py` — the autograder checks only return values.
 
-© 2025 by KyoSook Shin
+---
+
+© 2025 by **Kyo Sook Shin**  
+University of Illinois Urbana-Champaign  
+CS412: Introduction to Data Mining
+
