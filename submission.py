@@ -73,5 +73,5 @@ class Solution:
 
             max_log = max(log_probs)
             best_classes = [i for i, v in enumerate(log_probs) if abs(v - max_log) < 1e-12]
-            preds.append(min(best_classes) + 1)  # tie-break to smallest label
+            preds.append(max(best_classes) + 1)  # tie-break to max label
         return preds
