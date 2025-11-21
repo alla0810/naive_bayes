@@ -56,16 +56,16 @@ $$
 
 - Then:
 
-  $$
+  $$ 
   Info_A(D) = \frac{|D_L|}{|D|} Info(D_L) +
               \frac{|D_R|}{|D|} Info(D_R)
-  $$
+  $$ 
 
 - This value is used in `fit()` to compute information gain:
 
-  $$
+  $$ 
   Gain(A) = Info(D) - Info_A(D)
-  $$
+  $$ 
 
 
 ### 2. `fit(train_data, train_label)`
